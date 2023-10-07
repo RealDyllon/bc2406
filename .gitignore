@@ -1,0 +1,9 @@
+.venv
+.idea
+.vscode
+.Rhistory
+.RData
+oil/data
+oil/catboost_info
+.DS_Store
+**/*zip
