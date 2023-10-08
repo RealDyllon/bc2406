@@ -1,3 +1,5 @@
+"use client"
+
 import type { NextPage } from 'next'
 import Image from 'next/image'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -35,16 +37,56 @@ import {
   faLinkedinIn,
   faTwitter,
 } from '@fortawesome/free-brands-svg-icons'
-import React from 'react'
+import React, {useEffect, useState} from 'react'
 import { AdminLayout } from '@layout'
 import {UsersCard} from "@components/dashboard/DashboardHeroCard";
+import RealTimeChart, {DataPoint} from "@components/dashboard/RealTimeChart";
+import io from 'socket.io-client';
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler)
 
+const URL = process.env.NODE_ENV === "production" ? "" : 'http://127.0.0.1:5033';
+
+const socket = io(URL);
+
 const random = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1) + min)
 
-const Home: NextPage = () => (
-  <AdminLayout>
+const Home: NextPage = () => {
+
+  const [isConnected, setIsConnected] = useState(socket.connected);
+  const [data, setData] = useState<DataPoint[]>([]);
+
+  useEffect(() => {
+    socket.on('connect', ()=>{
+      console.log('connected to socket')
+      const engine = socket.io.engine;
+      console.log("socket transport: " + engine.transport.name)
+
+      engine.once('upgrade', () => {
+        console.log("socket transport: " + engine.transport.name)
+      });
+
+      setIsConnected(true)
+    })
+
+    socket.on('disconnect', ()=>{
+      setIsConnected(false)
+    })
+
+    socket.on('simulate_7', (newData) => {
+      console.log(newData)
+      setData((prevData) => [...prevData, newData]);
+    });
+
+    // Don't forget to handle cleanup to avoid memory leaks
+    // return () => socket.disconnect();
+  }, []);
+
+  const handleSendButton = () => {
+    socket.send('simulate_7', '');
+  }
+
+  return  (<AdminLayout>
     <div className="row">
       <div className="col-sm-6 col-lg-3">
         <UsersCard
@@ -293,6 +335,17 @@ const Home: NextPage = () => (
           </div>
         </Card>
       </div>
+    </div>
+
+      <button onClick={handleSendButton}>Send</button>
+
+      {isConnected ? <div>Connected</div> : <div>Disconnected</div>}
+      <div>
+        {data.map((row, index)=> (<p>{index}</p>))}
+      </div>
+
+    <div className={'h-100'}>
+      <RealTimeChart data={[]} />
     </div>
 
     <Card className="mb-4">
@@ -1282,6 +1335,6 @@ const Home: NextPage = () => (
       </div>
     </div>
   </AdminLayout>
-)
+)}
 
 export default Home
